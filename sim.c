@@ -26,13 +26,19 @@ typedef struct stateStruct {
 	int numMemory;
 } stateType;
 
+typedef struct entryStruct {
+        int v; // valid bit
+        int d; //dirty bit
+        int tag;
+        int lru;
+        int *block;
+} cacheEntry;
+
 /*
-* Log the specifics of each cache action.
-*
+* Log the specifics of each cache action. *
 * address is the starting word address of the range of data being transferred.
 * size is the size of the range of data being transferred.
-* type specifies the source and destination of the data being transferred.
-*
+* type specifies the source and destination of the data being transferred. *
 * cache_to_processor: reading data from the cache to the processor
 * processor_to_cache: writing data from the processor to the cache
 * memory_to_cache: reading data from the memory to the cache
@@ -41,8 +47,7 @@ typedef struct stateStruct {
 */
 enum action_type {cache_to_processor, processor_to_cache, memory_to_cache, cache_to_memory, cache_to_nowhere};
 
-void print_action(int address, int size, enum action_type type)
-{
+void print_action(int address, int size, enum action_type type) {
 	printf("transferring word [%i-%i] ", address, address + size - 1);
 	if (type == cache_to_processor) {
 		printf("from the cache to the processor\n");
@@ -55,6 +60,11 @@ void print_action(int address, int size, enum action_type type)
 	} else if (type == cache_to_nowhere) {
 		printf("from the cache to nowhere\n");
 	}
+}
+
+void print_stats(statetype* state) {
+	printf("Hits: %d\n", state->hits); // Update the state struct to include this variable
+	printf("Misses: %d\n", state->misses); // Update the state struct to include this variable
 }
 
 int field0(int instruction){
@@ -106,7 +116,7 @@ void printState(stateType *statePtr){
 	printf("\tmemory:\n");
 	for(i = 0; i < statePtr->numMemory; i++){
 		printf("\t\tmem[%d]=%d\n", i, statePtr->mem[i]);
-	}	
+	}
 	printf("\tregisters:\n");
 	for(i = 0; i < NUMREGS; i++){
 		printf("\t\treg[%d]=%d\n", i, statePtr->reg[i]);
@@ -216,7 +226,7 @@ void run(stateType* state){
 				// branch
 				state->pc = branchTarget;
 			}
-		}	
+		}
 	} // While
 	print_stats(total_instrs);
 }
@@ -298,6 +308,4 @@ int main(int argc, char** argv){
 
 	free(state);
 	free(fname);
-
 }
-

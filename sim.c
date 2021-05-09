@@ -19,13 +19,6 @@
 
 #define NOOPINSTRUCTION 0x1c00000
 
-typedef struct stateStruct {
-	int pc;
-	int mem[NUMMEMORY];
-	int reg[NUMREGS];
-	int numMemory;
-} stateType;
-
 typedef struct entryStruct {
         int v; // valid bit
         int d; //dirty bit
@@ -33,6 +26,16 @@ typedef struct entryStruct {
         int lru;
         int *block;
 } cacheEntry;
+
+typedef struct stateStruct {
+	int pc;
+	int mem[NUMMEMORY];
+	int reg[NUMREGS];
+	int numMemory;
+	cacheEntry  **cache;
+	int hits;
+	int misses;
+} stateType;
 
 /*
 * Log the specifics of each cache action. *
@@ -62,7 +65,7 @@ void print_action(int address, int size, enum action_type type) {
 	}
 }
 
-void print_stats(statetype* state) {
+void print_stats(stateType* state) {
 	printf("Hits: %d\n", state->hits); // Update the state struct to include this variable
 	printf("Misses: %d\n", state->misses); // Update the state struct to include this variable
 }
@@ -130,11 +133,6 @@ int signExtend(int num){
 		num -= (1<<16);
 	}
 	return num;
-}
-
-void print_stats(statetype* state){
-        printf("Hits: %d\n", state->hits);
-        printf("Misses: %d\n", state->misses);
 }
 
 void run(stateType* state){
@@ -228,28 +226,49 @@ void run(stateType* state){
 			}
 		}
 	} // While
-	print_stats(total_instrs);
+	print_stats(state);
 }
 
 int main(int argc, char** argv){
 
 	/** Get command line arguments **/
 	char* fname;
+	char* blockSizeChar = NULL;
+	char* numSetsChar = NULL;
+	char* setAssocChar = NULL;
 
 	opterr = 0;
 
 	int cin = 0;
 
-	while((cin = getopt(argc, argv, "i:")) != -1){
+	while((cin = getopt(argc, argv, "f:b:s:a:")) != -1){
 		switch(cin)
 		{
-			case 'i':
+			case 'f':
 				fname=(char*)malloc(strlen(optarg));
 				fname[0] = '\0';
 
 				strncpy(fname, optarg, strlen(optarg)+1);
 				printf("FILE: %s\n", fname);
 				break;
+			case 'b':
+                                blockSizeChar=(char*)malloc(strlen(optarg));
+                                blockSizeChar[0] = '\0';
+
+                                strncpy(blockSizeChar, optarg, strlen(optarg)+1);
+				break;
+			case 's':
+                                numSetsChar=(char*)malloc(strlen(optarg));
+                                numSetsChar[0] = '\0';
+
+                                strncpy(numSetsChar, optarg, strlen(optarg)+1);
+                                break;
+			case 'a':
+                                setAssocChar=(char*)malloc(strlen(optarg));
+                                setAssocChar[0] = '\0';
+
+                                strncpy(setAssocChar, optarg, strlen(optarg)+1);
+                                break;
 			case '?':
 				if(optopt == 'i'){
 					printf("Option -%c requires an argument.\n", optopt);
@@ -302,6 +321,30 @@ int main(int argc, char** argv){
 		i++;
 	}
 	fclose(fp);
+
+        // Try to extract integer values from flags
+        if (blockSizeChar != NULL && numSetsChar != NULL && setAssocChar != NULL) {
+                // Update state's cache with proper dimensions of array
+		int numSets = atoi(numSetsChar);
+		int setAssoc = atoi(setAssocChar);
+
+		// Ensure that tot num of cache blocks does not exceed 256
+		if ((numSets*setAssoc) > 256) {
+			printf("Max amount of blocks in cache exceeds spec of 256");
+		}
+
+                // Create 2D cache array
+		cacheEntry **cache = (cacheEntry**)malloc(numSets*sizeof(cacheEntry*));
+		for (i = 0; i < numSets; ++i) {
+    			cache[i] = (cacheEntry*)malloc(setAssoc*sizeof(cacheEntry));
+		}
+
+		// Define cache in state
+		state->cache = cache;
+        } else {
+                printf("Error interpreting flags");
+                return 0;
+        }
 
 	/** Run the simulation **/
 	run(state);

@@ -104,17 +104,17 @@ int getTag(int addr, int setAmt, int blkSize){
 	return  (addr>>(blkBits+setBits));
 }
 
-int* reconstructAddr(int tag, int setIndex, int setAmt, int blkSize){
+int reconstructAddr(int tag, int setIndex, int setAmt, int blkSize){
         int blkBits = 0;
         while (blkSize >>= 1) ++blkBits;
         int setBits = 0;
-        while (setAmt >>= 1) ++setBits;
+        while (setIndex >>= 1) ++setBits;
 
 	int blkPortion = 0; // block is our granular level for moving in and out of cache, blkOffset = 0
 	int setPortion = setIndex<<blkBits;
 	int tagPortion = setIndex<<(blkBits+setBits);
 
-	return (tagPortion | setPortion | blkPortion);
+	return (tagPortion | setPortion);
 }
 
 // Check for hit (matching tag in the set)
@@ -174,9 +174,13 @@ int cacheFetch(stateType* state) {
  				// Found way to populate, if dirty write to mem (write-back policy!)
 				if (state->cache[setIndex][i].d = 1){
 					// Reassmble address to store into memory
-					int* newAddr = reconstructAddr(tag, setIndex, setAmt, blkSize); // will return start of array in mem (pointer)
-					state->mem[newAddr] == state->cache[setIndex][i].block; // not sure if this is proper for block size of 4, for example
-					print_action(*newAddr, blkSize, cache_to_memory); // going from cache to memory, print this action.
+					int wAddr;
+					for (int w = 0; w<wayAmt; w++){
+						int newAddr = reconstructAddr(tag, setIndex, setAmt, blkSize); // will return start of array in mem (pointer)
+						wAddr = newAddr | w;
+						state->mem[wAddr] = state->cache[setIndex][i].block[w]; // not sure if this is proper for block size of 4, for example
+						print_action(wAddr, blkSize, cache_to_memory); // going from cache to memory, print this action.
+					}
 					state->cache[setIndex][i].d = 0; // reset dirty bit
 				} else {
 					// Not dirty, write to nowhere (evict)
@@ -184,9 +188,12 @@ int cacheFetch(stateType* state) {
 				}
 
 				// Pull in new data
-				state->cache[setIndex][i].block = state->mem[addr]*; // not sure if this is proper for block size of 4, for example
-				state->cache[setIndex][i].v = 1; // valid bit set if it was previously 0.
-
+				int wAddr;
+				for (int w = 0; w<wayAmt; w++){
+					wAddr = addr | w;
+					state->cache[setIndex][i].block[w] = state->mem[wAddr]; // not sure if this is proper for block size of 4, for example
+					state->cache[setIndex][i].v = 1; // valid bit set if it was previously 0.
+				}
 				// Update LRUs of set
 				updateLRU(i, setIndex, wayAmt, state);
 
@@ -228,7 +235,7 @@ void cacheLoadStore(stateType* state, int aluResult, int instr){
         		}
                 }
         }
-	*//old code
+	*/ //old code
 
         // Check for hit
         int matchingWay = checkHit(tag, setIndex, wayAmt, state);
@@ -251,10 +258,14 @@ void cacheLoadStore(stateType* state, int aluResult, int instr){
 				// Found way to populate, if dirty write to mem (write-back policy!)
                                 if (state->cache[setIndex][i].d = 1){
                                         // Reassmble address to store into memory
-                                        int* newAddr = reconstructAddr(tag, setIndex, setAmt, blkSize); // will return start of array in mem (pointer)
-                                        state->mem[newAddr] == state->cache[setIndex][i].block; // not sure if this is proper for block size of 4, for example
-                                        print_action(*newAddr, blkSize, cache_to_memory); // going from cache to memory, print this action.
-                                        state->cache[setIndex][i].d = 0; // reset dirty bit
+                                        int newAddr = reconstructAddr(tag, setIndex, setAmt, blkSize); // will return start of array in mem (pointer)
+                                        int wAddr;
+					for (int w = 0; w<wayAmt; w++){
+						wAddr = newAddr | w;
+						state->mem[newAddr] == state->cache[setIndex][i].block[w]; // not sure if this is proper for block size of 4, for example
+                                        	print_action(newAddr, blkSize, cache_to_memory); // going from cache to memory, print this action.
+                                        }
+					state->cache[setIndex][i].d = 0; // reset dirty bit
                         	} else {
                                 	// Not dirty, write to nowhere (evict)
                                 	print_action(addr, blkSize, cache_to_nowhere);
@@ -262,15 +273,20 @@ void cacheLoadStore(stateType* state, int aluResult, int instr){
 
 				if(opcode(instr) == LW){ // Load Word (mem to cache, then cache to processor)
                         		// Pull in new data
-		                        print_action(*newAddr, blkSize, cache_to_processor);
-		                        state->cache[setIndex][i].block = state->mem[addr]*; // not sure if this is proper for block size of 4, for example
-                		        state->cache[setIndex][i].v = 1; // valid bit set if it was previously 0.
+		                        int newAddr = reconstructAddr(tag, setIndex, setAmt, blkSize); // will return start of array in mem (pointer)
+					int wAddr;
+					for (int w = 0;w<wayAmt;w++){
+						wAddr = newAddr | w;
+						print_action(wAddr, blkSize, cache_to_processor);
+			                        state->cache[setIndex][i].block[w] = state->mem[wAddr]; // not sure if this is proper for block size of 4, for example
+                		        }
+					state->cache[setIndex][i].v = 1; // valid bit set if it was previously 0.
 
                         		// Update LRUs of set
                         		updateLRU(i, setIndex, wayAmt, state);
 
                         		// Finally, grab the instr from cache
-                        		print_action(*newAddr, blkSize, cache_to_processor);
+                        		print_action(newAddr, blkSize, cache_to_processor);
                                         state->reg[field0(instr)] = state->cache[setIndex][i].block[blkOffset];
 					return;
 			        } else if(opcode(instr) == SW){ // Store word (processor to cache, but not cache to mem (handled on eviction)

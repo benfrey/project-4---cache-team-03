@@ -195,6 +195,7 @@ int signExtend(int num){
 }
 
 int cacheFetch(stateType* state) {
+	printf("fetch");
         // Recover info about cache
         int blkSize = state->blkSize; // get size of block
         int wayAmt = state->setAssoc; // size of "row", amount of ways
@@ -214,7 +215,7 @@ int cacheFetch(stateType* state) {
 	int matchingWay = checkHit(tag, setIndex, state);
 	if (matchingWay != -1){//hit
                 updateLRU(matchingWay, setIndex, state); //update the LRU
-		print_cache(state);
+		//print_cache(state);
  		print_action(addr, 1, cache_to_processor); //print action to output
                 return (state->cache[setIndex][matchingWay].block[blkOffset]); //return instr from mem
 	} else { // miss
@@ -228,7 +229,7 @@ int cacheFetch(stateType* state) {
 					int newAddr = reconstructAddr(newTag, setIndex, state);
 
 					// Drop entire block into memory
-                                  	print_cache(state);
+                                  	//print_cache(state);
 					print_action(newAddr, blkSize, cache_to_memory); // going from cache to memory, print this action.
 					for (int j = 0; j < blkSize; j++){
                                                 state->mem[newAddr] = state->cache[setIndex][i].block[j];
@@ -237,7 +238,7 @@ int cacheFetch(stateType* state) {
 					state->cache[setIndex][i].d = 0; // reset dirty bit
 				} else if (state->cache[setIndex][i].tag != -1) { // When tag =-1, this is the same as cache being empty.
 					// Not dirty, write to nowhere (evict)
-					print_cache(state);
+					//print_cache(state);
 					print_action(addr, blkSize, cache_to_nowhere);
 				}
 
@@ -264,7 +265,8 @@ int cacheFetch(stateType* state) {
 }
 
 void cacheLoadStore(stateType* state, int aluResult, int instr){
-        // Recover info about cache
+        printf("lwsw\n");
+	// Recover info about cache
         int blkSize = state->blkSize; // get size of block
         int wayAmt = state->setAssoc; // size of "row", amount of ways
         int setAmt = state->setAmt; // size of "column", amount of sets
@@ -303,7 +305,7 @@ void cacheLoadStore(stateType* state, int aluResult, int instr){
                                         int newAddr = reconstructAddr(newTag, setIndex, state);
 
                                         // Drop entire block into memory
-                                        print_cache(state);
+                                       	//print_cache(state);
                                         print_action(newAddr, blkSize, cache_to_memory); // going from cache to memory, print this action.
                                         for (int j = 0; j < blkSize; j++){
                                                 state->mem[newAddr] = state->cache[setIndex][i].block[j];
@@ -312,14 +314,16 @@ void cacheLoadStore(stateType* state, int aluResult, int instr){
                                         state->cache[setIndex][i].d = 0; // reset dirty bit
                                 } else if (state->cache[setIndex][i].tag != -1) { // When tag =-1, this is the same as cache being empty.
                                         // Not dirty, write to nowhere (evict)
-                                        print_cache(state);
-                                        print_action(addr, blkSize, cache_to_nowhere);
+                                        //print_cache(state);
+					int newTag = state->cache[setIndex][i].tag;
+                                        int newAddr = reconstructAddr(newTag, setIndex, state);
+                                        print_action(newAddr, blkSize, cache_to_nowhere);
                                 }
 
 				if(opcode(instr) == LW){ // Load Word (mem to cache, then cache to processor)
                                 	// Pull data from mem into cache
                                 	int newAddr = reconstructAddr(tag, setIndex, state);
-                                	print_cache(state);
+                                	//print_cache(state);
                                 	print_action(newAddr, blkSize, memory_to_cache);
 					//printf("HERE IN LW \n");
                                 	for (int j = 0; j < blkSize; j++){
@@ -334,8 +338,8 @@ void cacheLoadStore(stateType* state, int aluResult, int instr){
 
 
                         		// Finally, grab the instr from cache
-					print_cache(state);
-                        		print_action(newAddr, 1,  cache_to_processor);
+					//print_cache(state);
+                        		print_action(addr, 1,  cache_to_processor);
                                         state->reg[field0(instr)] = state->cache[setIndex][i].block[blkOffset];
 					return;
 			        } else if(opcode(instr) == SW){ // Store word (processor to cache, but not cache to mem (handled on eviction)

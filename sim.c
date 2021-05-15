@@ -83,8 +83,6 @@ void print_cache(stateType* state) {
 		}
 		printf("\n");
 	}
-
-	printf("-----\n");
 }
 
 int field0(int instruction){
@@ -217,7 +215,7 @@ int cacheFetch(stateType* state) {
 	if (matchingWay != -1){//hit
                 updateLRU(matchingWay, setIndex, state); //update the LRU
 		print_cache(state);
- 		print_action(addr, blkSize, cache_to_processor); //print action to output
+ 		print_action(addr, 1, cache_to_processor); //print action to output
                 return (state->cache[setIndex][matchingWay].block[blkOffset]); //return instr from mem
 	} else { // miss
 		for (int i = 0; i < wayAmt; i++){
@@ -455,6 +453,7 @@ void run(stateType* state){
 				state->pc = branchTarget;
 			}
 		}
+	        printf("-----\n");
 	} // While
 	print_stats(state);
 }

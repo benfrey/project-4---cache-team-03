@@ -32,9 +32,12 @@ typedef struct stateStruct {
 	int mem[NUMMEMORY];
 	int reg[NUMREGS];
 	int numMemory;
-	cacheEntry  **cache;
+	cacheEntry cache[][];
 	int hits;
 	int misses;
+	int blkSize;
+	int setAmt;
+	int wayAmt;
 } stateType;
 
 /*
@@ -104,6 +107,22 @@ int getTag(int addr, int setAmt, int blkSize){
 	return  (addr>>(blkBits+setBits));
 }
 
+// Function to check if is power of 2.
+int powerOfTwo(int n){
+	if (n == 0){
+    		return 0;
+ 	}
+
+	while (n != 1){
+		if (n%2 != 0){
+         		return 0;
+		}
+      		n = n/2;
+  	}
+  	return 1;
+}
+
+
 int reconstructAddr(int tag, int setIndex, int setAmt, int blkSize){
         int blkBits = 0;
         while (blkSize >>= 1) ++blkBits;
@@ -151,10 +170,15 @@ int signExtend(int num){
 
 int cacheFetch(stateType* state) {
         // Recover info about cache
-        int blkSize = sizeof(state->cache[0][0].block); // get size of block
-        int totBlocks = sizeof(state->cache); // total amount of blocks in cache
-        int wayAmt = sizeof(state->cache[0]); // size of row, amount of ways
+        int blkSize = state->cache[0][0].block[0]; // get size of block
+        int totBlocks = sizeof(*state->cache); // total amount of blocks in cache
+        int wayAmt = sizeof(*state->cache[0]); // size of row, amount of ways
         int setAmt = totBlocks/wayAmt; // size of column, amount of sets
+
+	printf("blkSize: %d \n", blkSize);
+        printf("totBlocks: %d \n", totBlocks);
+        printf("wayAmt: %d \n", wayAmt);
+        printf("setAmt: %d \n", setAmt);
 
 	// Manipulate address based on memory address format
 	int addr = state->pc;
@@ -217,25 +241,6 @@ void cacheLoadStore(stateType* state, int aluResult, int instr){
         int blkOffset =getBlkOffset(addr, blkSize);
         int setIndex = getSetIndex(addr, setAmt, blkSize);
         int tag = getTag(addr, setAmt, blkSize);
-
-      /*  // Check for hit
-        for (int i = 0; i < wayAmt; i++){
-                if (tag == state->cache[setIndex][i].tag) {
-                        // Hit
-                        state->hits++;
-
-			if(opcode(instr) == LW){
-                		// Load
-				print_action(addr, blkSize, cache_to_processor);
-				state->reg[field0(instr)] = state->cache[setIndex][i].block[blkOffset];
-                	        return;
-			} else if(opcode(instr) == SW){
-		                // Store, already in cache, it is okay here.
-                		//state->mem[aluResult] = regA;
-        		}
-                }
-        }
-	*/ //old code
 
         // Check for hit
         int matchingWay = checkHit(tag, setIndex, wayAmt, state);
@@ -485,39 +490,61 @@ int main(int argc, char** argv){
 	}
 	fclose(fp);
 
+	printf("here");
+
+	int numSets; // number of sets in cache
+        int setAssoc; // 1 = direct mapped, 256 = full assoc (assuming block size 1 $
+        int blkSize; // amount of words in block
+
         // Try to extract integer values from flags
-        if (blockSizeChar != NULL && numSetsChar != NULL && setAssocChar != NULL) {
-                // Update state's cache with proper dimensions of array
-		int numSets = atoi(numSetsChar); // number of sets in cache
-		int setAssoc = atoi(setAssocChar); // 1 = direct mapped, 256 = full assoc (assuming block size 1 word)
-		int blkSize = atoi(blockSizeChar); // amount of words in block
+        //try {
+        	// Update state's cache with proper dimensions of array
+		numSets = atoi(numSetsChar); // number of sets in cache
+		setAssoc = atoi(setAssocChar); // 1 = direct mapped, 256 = full assoc (assuming block size 1 word)
+		blkSize = atoi(blockSizeChar); // amount of words in block
+	//} catch {
+	//	printf("Error interpreting flags \n");
+        //        exit(-1);
+//	}
 
-		// Ensure that amount of blocks does not exceed 256
-		if ((numSets*setAssoc) > 256) {
-			printf("Max amount of blocks in cache exceeds spec of 256");
+	// Check if each param is a power of two
+	if (powerOfTwo(numSets) != 1 || powerOfTwo(setAssoc) != 1 || powerOfTwo(blkSize) != 1){
+		printf("Error, one of the input params is not a power of two \n");
+                exit(-1);
+	}
+
+	printf("here");
+
+	printf("-----\nInputs: \n");
+	printf("blkSize: %d \n", blkSize);
+        printf("numSets: %d \n", numSets);
+        printf("setAssoc: %d \n-----\n", setAssoc);
+
+	// Ensure that amount of blocks does not exceed 256
+	if ((numSets*setAssoc) > 256) {
+		printf("Max amount of blocks in cache exceeds spec of 256 \n");
+		exit(-1);
+	}
+
+        // Create 2D cache array
+	cacheEntry **cache = (cacheEntry**)malloc(numSets*sizeof(cacheEntry*));
+	for (int i = 0; i < numSets; ++i) {	// through sets
+		cache[i] = (cacheEntry*)malloc(setAssoc*sizeof(cacheEntry)); // numSets of size setAssoc (ways)
+
+		for (int j = 0; j < setAssoc; j++) { // through ways
+                        // Initialize cache entries
+			cache[i][j].lru = setAssoc - 1;
+			cache[i][j].v = 0;
+			cache[i][j].d = 0;
+			printf("here");
+			cache[i][j].tag = -1;
+			cache[i][j].block = (int*)malloc((blkSize+1)*sizeof(int));
+			cache[i][j].block[0] = blkSize;
 		}
+	}
 
-                // Create 2D cache array
-		cacheEntry **cache = (cacheEntry**)malloc(numSets*sizeof(cacheEntry*));
-		for (int i = 0; i < numSets; ++i) {	// through sets
-			cache[i] = (cacheEntry*)malloc(setAssoc*sizeof(cacheEntry)); // numSets of size setAssoc (ways)
-
-			for (int j = 0; j < setAssoc; j++) { // through ways
-	                        // Initialize cache entries
-				cache[i][j].lru = setAssoc - 1;
-				cache[i][j].v = 0;
-				cache[i][j].d = 0;
-				cache[i][j].tag = -1;
-				cache[i][j].block = (int*)malloc(blkSize*sizeof(int));
-			}
-		}
-
-		// Define cache in state
-		state->cache = cache;
-        } else {
-                printf("Error interpreting flags");
-                return 0;
-        }
+	// Define cache in state
+	state->cache = **cache;
 
 	/** Run the simulation **/
 	run(state);

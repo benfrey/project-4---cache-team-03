@@ -79,7 +79,7 @@ void print_cache(stateType* state) {
 
 	for (int i=0; i<setAmt; i++){
 		for (int j=0; j<setAssoc; j++){
-			printf("v=%d,d=%d,t=%d,l=%d,b[0]=%d", state->cache[i][j].v, state->cache[i][j].d, state->cache[i][j].tag, state->cache[i][j].lru, state->cache[i][j].block[0]);
+			printf("v=%d,d=%d,t=%d,l=%d,b[0]=%d,b[1]=%d,b[2]=%d,b[3]=%d", state->cache[i][j].v, state->cache[i][j].d, state->cache[i][j].tag, state->cache[i][j].lru, state->cache[i][j].block[0], state->cache[i][j].block[1], state->cache[i][j].block[2], state->cache[i][j].block[3]);
 		}
 		printf("\n");
 	}
@@ -202,9 +202,9 @@ int cacheFetch(stateType* state) {
         int wayAmt = state->setAssoc; // size of "row", amount of ways
         int setAmt = state->setAmt; // size of "column", amount of sets
 
-	printf("blkSize: %d \n", blkSize);
-        printf("wayAmt: %d \n", wayAmt);
-        printf("setAmt: %d \n", setAmt);
+	//printf("blkSize: %d \n", blkSize);
+        //printf("wayAmt: %d \n", wayAmt);
+        //printf("setAmt: %d \n", setAmt);
 
 	// Manipulate address based on memory address format
 	int addr = state->pc;
@@ -243,8 +243,6 @@ int cacheFetch(stateType* state) {
 					print_action(addr, blkSize, cache_to_nowhere);
 				}
 
-				//printf("HERE0\n");
-
                                 // Pull data from mem into cache
                                 int newAddr = addr;
 				print_cache(state);
@@ -254,14 +252,13 @@ int cacheFetch(stateType* state) {
 					newAddr++;
                                 }
 
-				//printf("HERE1");
 				// Update LRUs of set, tag
 				updateLRU(i, setIndex, state);
 				state->cache[setIndex][i].tag = tag;
 
 				// Finally, grab the instr from cache
 				print_cache(state);
-				print_action(addr, 0, cache_to_processor);
+				print_action(addr, 1, cache_to_processor);
 				return (state->cache[setIndex][i].block[blkOffset]);
 			}
 		}
@@ -285,10 +282,12 @@ void cacheLoadStore(stateType* state, int aluResult, int instr){
         if (matchingWay != -1){ //hit
                 updateLRU(matchingWay, setIndex, state); //update the LRU
         	if(opcode(instr) == LW){ // Load Word
+			print_cache(state);
                         print_action(addr, blkSize, cache_to_processor); //print out action to output
                         state->reg[field0(instr)] = state->cache[setIndex][matchingWay].block[blkOffset]; //populate reg with particular word
                         return;
                 } else if(opcode(instr) == SW){
+			print_cache(state);
                         print_action(addr, blkSize, processor_to_cache); //print out action to output
 			state->cache[setIndex][matchingWay].block[blkOffset] = state->reg[field0(instr)]; //populate cache with instr from reg
                         state->cache[setIndex][matchingWay].d = 1; // set dirty bit
@@ -298,47 +297,72 @@ void cacheLoadStore(stateType* state, int aluResult, int instr){
         } else { // miss
                 for (int i = 0; i < wayAmt; i++){ // identify LRU way
                         if ((wayAmt-1) == state->cache[setIndex][i].lru){
-				// Found way to populate, if dirty write to mem (write-back policy!)
-                                if (state->cache[setIndex][i].d = 1){
+                                // Found way to populate, if dirty write to mem (write-back policy!)
+                                if (state->cache[setIndex][i].d == 1){
+                                        printf("DIRTY\n");
                                         // Reassmble address to store into memory
-                                        int newAddr = reconstructAddr(tag, setIndex, state); // will return start of array in mem (pointer)
-                                        int wAddr;
-					for (int w = 0; w<wayAmt; w++){
-						wAddr = newAddr | w;
-						state->mem[newAddr] == state->cache[setIndex][i].block[w]; // not sure if this is proper for block size of 4, for example
-                                        	print_action(newAddr, blkSize, cache_to_memory); // going from cache to memory, print this action.
+                                        int newTag = state->cache[setIndex][i].tag;
+                                        int newAddr = reconstructAddr(newTag, setIndex, state);
+
+                                        // Drop entire block into memory
+                                        print_cache(state);
+                                        print_action(newAddr, blkSize, cache_to_memory); // going from cache to memory, print this action.
+                                        for (int j = 0; j < blkSize; j++){
+                                                state->mem[newAddr] = state->cache[setIndex][i].block[j];
+                                                newAddr++;
                                         }
-					state->cache[setIndex][i].d = 0; // reset dirty bit
-                        	} else {
-                                	// Not dirty, write to nowhere (evict)
-                                	print_action(addr, blkSize, cache_to_nowhere);
-                        	}
+                                        state->cache[setIndex][i].d = 0; // reset dirty bit
+                                } else if (state->cache[setIndex][i].tag != -1) { // When tag =-1, this is the same as cache being empty.
+                                        // Not dirty, write to nowhere (evict)
+                                        print_cache(state);
+                                        print_action(addr, blkSize, cache_to_nowhere);
+                                }
 
 				if(opcode(instr) == LW){ // Load Word (mem to cache, then cache to processor)
-                        		// Pull in new data
-		                        int newAddr = reconstructAddr(tag, setIndex, state); // will return start of array in mem (pointer)
-					int wAddr;
-					for (int w = 0;w<wayAmt;w++){
-						wAddr = newAddr | w;
-						print_action(wAddr, blkSize, cache_to_processor);
-			                        state->cache[setIndex][i].block[w] = state->mem[wAddr]; // not sure if this is proper for block size of 4, for example
-                		        }
-					state->cache[setIndex][i].v = 1; // valid bit set if it was previously 0.
+                                	// Pull data from mem into cache
+                                	int newAddr = reconstructAddr(tag, setIndex, state);
+                                	print_cache(state);
+                                	print_action(newAddr, blkSize, memory_to_cache);
+					//printf("HERE IN LW \n");
+                                	for (int j = 0; j < blkSize; j++){
+                                        	state->cache[setIndex][i].block[j] = state->mem[newAddr];
+                                        	newAddr++;
+                                	}
+					state->cache[setIndex][i].v = 1;
 
-                        		// Update LRUs of set
+                        		// Update LRUs of set, tag
                         		updateLRU(i, setIndex, state);
+	                                state->cache[setIndex][i].tag = tag;
+
 
                         		// Finally, grab the instr from cache
-                        		print_action(newAddr, blkSize,  cache_to_processor);
+					print_cache(state);
+                        		print_action(newAddr, 1,  cache_to_processor);
                                         state->reg[field0(instr)] = state->cache[setIndex][i].block[blkOffset];
 					return;
 			        } else if(opcode(instr) == SW){ // Store word (processor to cache, but not cache to mem (handled on eviction)
-		                        print_action(addr, blkSize, processor_to_cache); //print out action to output
-        		                state->cache[setIndex][matchingWay].block[blkOffset] = state->reg[field0(instr)]; //populate cache with instr from reg
-                        		state->cache[setIndex][matchingWay].d = 1; // set dirty bit
+		                        // Pull data from mem into cache
+                                        int newAddr = reconstructAddr(tag, setIndex, state);
+                                        print_cache(state);
+                                        print_action(newAddr, blkSize, memory_to_cache);
+                                        //printf("HERE IN SW \n");
+                                        for (int j = 0; j < blkSize; j++){
+                                                state->cache[setIndex][i].block[j] = state->mem[newAddr];
+                                                newAddr++;
+                                        }
+                                        state->cache[setIndex][i].v = 1;
+                                        //printf("blkOffset: %d\n", blkOffset);
+					//printf("matchingWay: %d\n", matchingWay);
 
-                                        // Update LRUs of set
+					print_cache(state);
+					print_action(addr, 1, processor_to_cache); //print out action to output
+					state->cache[setIndex][i].block[blkOffset] = state->reg[field0(instr)]; //populate cache with instr from reg
+                        		state->cache[setIndex][i].d = 1; // set dirty bit
+                                        //printf("HERE2 IN SW \n");
+
+                                        // Update LRUs of set, tag
                                         updateLRU(i, setIndex, state);
+	                                state->cache[setIndex][i].tag = tag;
 
                         		return;
                 		}

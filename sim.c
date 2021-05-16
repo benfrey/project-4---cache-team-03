@@ -70,7 +70,7 @@ void print_action(int address, int size, enum action_type type) {
 }
 
 void print_stats(stateType* state) {
-	printf("Cycles: %d\n", state->cycles);
+	//printf("Cycles: %d\n", state->cycles);
 	printf("Hits: %d\n", state->hits); // Update the state struct to include this variable
 	printf("Misses: %d\n", state->misses); // Update the state struct to include this variable
 }

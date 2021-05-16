@@ -28,6 +28,7 @@ typedef struct entryStruct {
 } cacheEntry;
 
 typedef struct stateStruct {
+	int cycles;
 	int pc;
 	int mem[NUMMEMORY];
 	int reg[NUMREGS];
@@ -429,7 +430,7 @@ void run(stateType* state){
 		//printState(state);
 		// Stuff here
 
-
+		state->cycles++;
 		// Instruction Fetch
 		instr = cacheFetch(state);
 
@@ -576,6 +577,7 @@ int main(int argc, char** argv){
 	// Malloc state and initialize
 	stateType* state = (stateType*)malloc(sizeof(stateType));
 	state->pc = 0;
+	state->cycles = 0;
 	memset(state->mem, 0, NUMMEMORY*sizeof(int));
 	memset(state->reg, 0, NUMREGS*sizeof(int));
 	state->numMemory = line_count;

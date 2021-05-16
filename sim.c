@@ -29,6 +29,7 @@ typedef struct entryStruct {
 
 typedef struct stateStruct {
 	int pc;
+	int cycles;
 	int mem[NUMMEMORY];
 	int reg[NUMREGS];
 	int numMemory;
@@ -229,7 +230,6 @@ void invalidateBits(stateType* state){
                 }
         }
 }
-
 
 int signExtend(int num){
 	// convert a 16-bit number into a 32-bit integer
@@ -441,6 +441,7 @@ void run(stateType* state){
 
 		/* check for halt */
 		if (opcode(instr) == HALT) {
+			state->cycles++;
 			dirtyWB(state); // write back any dirty cache entries to mem
 			invalidateBits(state); // invalidate all cache entries
 			//printf("machine halted\n");
@@ -501,6 +502,7 @@ void run(stateType* state){
 				state->pc = branchTarget;
 			}
 		}
+		state->cycles++;
 	} // While
 	print_stats(state);
 }
@@ -582,6 +584,7 @@ int main(int argc, char** argv){
 	// Malloc state and initialize
 	stateType* state = (stateType*)malloc(sizeof(stateType));
 	state->pc = 0;
+	state->cycles = 0;
 	memset(state->mem, 0, NUMMEMORY*sizeof(int));
 	memset(state->reg, 0, NUMREGS*sizeof(int));
 	state->numMemory = line_count;

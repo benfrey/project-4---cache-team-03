@@ -281,10 +281,7 @@ int cacheFetch(stateType* state) {
 						newAddr++;
 					}
 					state->cache[setIndex][i].d = 0; // reset dirty bit
-				}
-
-				//printf("V BIT: %d", state->cache[setIndex][i].v);
-				if (state->cache[setIndex][i].v == 1) { // When v == 1, the entry is valid and we need to throw it away.
+				} else if (state->cache[setIndex][i].v == 1) { // When v == 1, the entry is valid and we need to throw it away.
 					// Not dirty, write to nowhere (evict)
 					//print_cache(state);
 					print_action(newAddr, blkSize, cache_to_nowhere);
@@ -360,11 +357,7 @@ void cacheLoadStore(stateType* state, int aluResult, int instr){
                                                 newAddr++;
                                         }
                                         state->cache[setIndex][i].d = 0; // reset dirty bit
-                                }
-
-                                //printf("V BIT: %d \n", state->cache[setIndex][i].v);
-
-				if (state->cache[setIndex][i].v == 1) { // When v == 1, the entry is valid and we need to throw it away.
+                                } else if (state->cache[setIndex][i].v == 1) { // When v == 1, the entry is valid and we need to throw it away.
                                         // Not dirty, write to nowhere (evict)
                                         //print_cache(state);
                                         print_action(newAddr, blkSize, cache_to_nowhere);

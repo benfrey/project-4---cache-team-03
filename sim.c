@@ -28,7 +28,6 @@ typedef struct entryStruct {
 } cacheEntry;
 
 typedef struct stateStruct {
-	int cycles;
 	int pc;
 	int mem[NUMMEMORY];
 	int reg[NUMREGS];
@@ -281,7 +280,10 @@ int cacheFetch(stateType* state) {
 						newAddr++;
 					}
 					state->cache[setIndex][i].d = 0; // reset dirty bit
-				} else if (state->cache[setIndex][i].v == 1) { // When v == 1, the entry is valid and we need to throw it away.
+				}
+
+				//printf("V BIT: %d", state->cache[setIndex][i].v);
+				if (state->cache[setIndex][i].v == 1) { // When v == 1, the entry is valid and we need to throw it away.
 					// Not dirty, write to nowhere (evict)
 					//print_cache(state);
 					print_action(newAddr, blkSize, cache_to_nowhere);
@@ -357,7 +359,11 @@ void cacheLoadStore(stateType* state, int aluResult, int instr){
                                                 newAddr++;
                                         }
                                         state->cache[setIndex][i].d = 0; // reset dirty bit
-                                } else if (state->cache[setIndex][i].tag == 1) { // When v == 1, the entry is valid and we need to throw it away.
+                                }
+
+                                //printf("V BIT: %d \n", state->cache[setIndex][i].v);
+
+				if (state->cache[setIndex][i].v == 1) { // When v == 1, the entry is valid and we need to throw it away.
                                         // Not dirty, write to nowhere (evict)
                                         //print_cache(state);
                                         print_action(newAddr, blkSize, cache_to_nowhere);
@@ -430,7 +436,6 @@ void run(stateType* state){
 		//printState(state);
 		// Stuff here
 
-		state->cycles++;
 		// Instruction Fetch
 		instr = cacheFetch(state);
 
@@ -577,7 +582,6 @@ int main(int argc, char** argv){
 	// Malloc state and initialize
 	stateType* state = (stateType*)malloc(sizeof(stateType));
 	state->pc = 0;
-	state->cycles = 0;
 	memset(state->mem, 0, NUMMEMORY*sizeof(int));
 	memset(state->reg, 0, NUMREGS*sizeof(int));
 	state->numMemory = line_count;

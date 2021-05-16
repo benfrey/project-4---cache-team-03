@@ -166,15 +166,15 @@ int reconstructAddr(int tag, int setIndex, stateType* state){
 int checkHit(int tag, int setIndex, stateType* state){
 	int setAssoc = state->setAssoc;
         for (int i = 0; i < setAssoc; i++){
-                if (tag == state->cache[setIndex][i].tag) {
+                if (tag == state->cache[setIndex][i].tag && state->cache[setIndex][i].v == 1) {
                         // Hit
-			printf("!HIT!\n");
+			//printf("!HIT!\n");
                         state->hits++;
 			return i;
                 }
         }
 	// Miss
-	printf("!MISS!\n");
+	//printf("!MISS!\n");
 	state->misses++;
 	return -1;
 }
@@ -200,7 +200,7 @@ void dirtyWB(stateType* state){
         for (int i=0; i<setAmt; i++){
                 for (int j=0; j<setAssoc; j++){
                         if (state->cache[i][j].d == 1){
-				printf("DIRTY!\n");
+				//printf("DIRTY!\n");
 				// Write back
 
 				// Reassmble address to store into memory
@@ -238,78 +238,6 @@ int signExtend(int num){
 		num -= (1<<16);
 	}
 	return num;
-}
-
-// Instruction fetch
-int cacheFetch(stateType* state) {
-        // Recover info about cache
-        int blkSize = state->blkSize; // get size of block
-        int wayAmt = state->setAssoc; // size of "row", amount of ways
-        int setAmt = state->setAmt; // size of "column", amount of sets
-
-	//printf("blkSize: %d \n", blkSize);
-        //printf("wayAmt: %d \n", wayAmt);
-        //printf("setAmt: %d \n", setAmt);
-
-	// Manipulate address based on memory address format
-	int addr = state->pc;
-	int blkOffset = getBlkOffset(addr, state);
-	int setIndex = getSetIndex(addr, state);
-	int tag = getTag(addr, state);
-
-	// Check for hit
-	int matchingWay = checkHit(tag, setIndex, state);
-	if (matchingWay != -1){//hit
-                updateLRU(matchingWay, setIndex, state); //update the LRU
-		//print_cache(state);
- 		print_action(addr, 1, cache_to_processor); //print action to output
-                return (state->cache[setIndex][matchingWay].block[blkOffset]); //return instr from mem
-	} else { // miss
-		for (int i = 0; i < wayAmt; i++){
-			if ((wayAmt-1) == state->cache[setIndex][i].lru){
-                                // Reassmble address to store into memory
-                                int newTag = state->cache[setIndex][i].tag;
-                                int newAddr = reconstructAddr(newTag, setIndex, state);
-
- 				// Found way to populate, if dirty write to mem (write-back policy!)
-
-				if (state->cache[setIndex][i].d == 1){
-					printf("DIRTY!\n");
-					// Drop entire block into memory
-                                  	//print_cache(state);
-					print_action(newAddr, blkSize, cache_to_memory); // going from cache to memory, print this action.
-					for (int j = 0; j < blkSize; j++){
-                                                state->mem[newAddr] = state->cache[setIndex][i].block[j];
-						newAddr++;
-					}
-					state->cache[setIndex][i].d = 0; // reset dirty bit
-				} else if (state->cache[setIndex][i].v == 1) { // When v == 1, the entry is valid and we need to throw it away.
-					// Not dirty, write to nowhere (evict)
-					//print_cache(state);
-					print_action(newAddr, blkSize, cache_to_nowhere);
-				}
-
-                                // Pull data from mem into cache
-                                newAddr = addr;
-				//print_cache(state);
-                                print_action(newAddr, blkSize, memory_to_cache);
-                                for (int j = 0; j < blkSize; j++){
-                                        state->cache[setIndex][i].block[j] = state->mem[newAddr];
-					newAddr++;
-                                }
-
-				// Update LRUs of set, tag, valid bit
-				updateLRU(i, setIndex, state);
-				state->cache[setIndex][i].tag = tag;
-				state->cache[setIndex][i].v = 1;
-
-				// Finally, grab the instr from cache
-				//print_cache(state);
-				print_action(addr, 1, cache_to_processor);
-				return (state->cache[setIndex][i].block[blkOffset]);
-			}
-		}
-	}
 }
 
 // Function to determine if IF, LW, or SW. Returns -1 for LW or SW (no return necessary) or an instr int for IF.
@@ -354,7 +282,7 @@ int cacheOperation(stateType* state, int addrIn, int instr){
 
                                 // Found way to populate, if dirty write to mem (write-back policy!)
                                 if (state->cache[setIndex][i].d == 1){
-                                        printf("DIRTY!\n");
+                                        //printf("DIRTY!\n");
 
                                         // Drop entire block into memory
                                        	//print_cache(state);
@@ -390,7 +318,7 @@ int cacheOperation(stateType* state, int addrIn, int instr){
 	                                state->cache[setIndex][i].tag = tag;
 					state->cache[setIndex][i].v = 1;
 
-					return;
+					return -1;
 			        } else if(opcode(instr) == SW){ // Store word (processor to cache, but not cache to mem (handled on eviction)
 		                        // Pull data from mem into cache
                                         int newAddr = reconstructAddr(tag, setIndex, state);
@@ -411,11 +339,12 @@ int cacheOperation(stateType* state, int addrIn, int instr){
 	                                state->cache[setIndex][i].tag = tag;
 	                                state->cache[setIndex][i].v = 1;
 
-                        		return;
+                        		return -1;
                 		} else { // IF
 					// Pull data from mem into cache
                                 	newAddr = addr;
                                		//print_cache(state);
+					//printf("blkSize: %d", blkSize);
 	                                print_action(newAddr, blkSize, memory_to_cache);
         	                        for (int j = 0; j < blkSize; j++){
                 	                        state->cache[setIndex][i].block[j] = state->mem[newAddr];
@@ -664,7 +593,7 @@ int main(int argc, char** argv){
 			cache[i][j].lru = setAssoc - 1;
 			cache[i][j].v = 0;
 			cache[i][j].d = 0;
-			cache[i][j].tag = -1;
+			cache[i][j].tag = 0;
 			cache[i][j].block = (int*)malloc((blkSize)*sizeof(int));
 		}
 	}

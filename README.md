@@ -4,7 +4,7 @@ Ben Frey and Joe Lambrecht <br />
 CISC340 - Professor Myre <br />
 Project 4 - Cache Simulator
 
-## Cache Simulator (Based on the first generation UST-3400)
+## Cache Simulator (Based on the first generation single-cycle UST-3400)
 The UST-3400 Cache Simulator implements cache as an intermediary between the single-cycle processor and memory. The purpose of the cache implementation is to increase CPU performance by temporarily holding instructions and data that the CPU is likely to use. The cache in this implementation is transparent to the instruction set assembly program (ISA) in the sense that any arbitrary UST-3400 ISA program is compatible with the cache simulator.
 
 ## UST-3400 Functional Overview

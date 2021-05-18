@@ -32,10 +32,10 @@ Note that each of the cache parameter inputs (-b, -s, and -a) must be positive p
 | ------------- | :---------------------|
 | test.4.2.1.asm (test.4.2.1.mc) | Simple example presented in the project documentation with a storeword followed by two load words and a halt. |
 | testTwo.2.2.2.asm (testTwo.2.2.2.mc) | Slightly more involved example given in class as practice. Involves an R-Type instruction. The smaller (relative to test.4.2.1.asm) cache dimensions required for this example lead to a significant amount of misses. |
-| lwTest.2.1.8.asm (lwTest.2.1.8.mc) | Tests the case in which an entry's LRU reaches the maximum value while unallocated entries remain. A new cache entry should be allocated instead of arbitrarily writing into any way of a certain LRU. |
-| class.4.4.4.asm (class.4.4.4.mc) | Classic class.asm example that tests a myriad of instruction sequences. |
+| lwTest.2.1.8.asm (lwTest.2.1.8.mc) | Tests the case in which an entry's LRU reaches the maximum value while unallocated entries remain. A new cache entry should be allocated instead of arbitrarily writing into any way of a certain LRU (allocate on write policy). Also exmplifies write-back policy for two dirty entries. |
+| class.2.2.2.asm (class.2.2.2.mc) | Classic class.asm example that tests a myriad of instruction sequences. Both compulsory and capacity misses occur. |
 | dirty.2.2.2.asm (dirty.2.2.2.mc) | Example of a dirty entry that is written back to memory with program halt. |
-| halt.1.1.1.asm (halt.1.1.1.mc) | Example of a halt that is overwritten to prevent the program from terminating prematurely. |
+| halt.1.1.1.asm (halt.1.1.1.mc) | Example of a halt that is overwritten in instr memory to prevent the program from terminating prematurely. |
 
 ## Known Issues
 - There are no current known issues.

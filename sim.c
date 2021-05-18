@@ -283,7 +283,7 @@ int cacheOperation(stateType* state, int addrIn, int instr){
                         }
                 }
 		for (int i = 0; i < wayAmt; i++){ // identify LRU way
-                       	if ((wayAmt-1) == state->cache[setIndex][i].lru && state->cache[setIndex][i].v == 0){
+                       	if (state->cache[setIndex][i].v == 0){
 				bestWay = i;
 				break;
 			}

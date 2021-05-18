@@ -69,7 +69,6 @@ void print_action(int address, int size, enum action_type type) {
 }
 
 void print_stats(stateType* state) {
-	//printf("Cycles: %d\n", state->cycles);
 	printf("Hits: %d\n", state->hits); // Update the state struct to include this variable
 	printf("Misses: %d\n", state->misses); // Update the state struct to include this variable
 }
@@ -398,9 +397,6 @@ void run(stateType* state){
 	while(1){
 		total_instrs++;
 
-		//printState(state);
-		// Stuff here
-
 		// Instruction Fetch
 		instr = cacheOperation(state, state->pc, -1);
 
@@ -563,10 +559,10 @@ int main(int argc, char** argv){
 	fclose(fp);
 
 	int numSets; // number of sets in cache
-        int setAssoc; // 1 = direct mapped, 256 = full assoc (assuming block size 1 $
+        int setAssoc; // number of ways
         int blkSize; // amount of words in block
 
-      	// Update state's cache with proper dimensions of array
+	// Ensure numeric user input
 	if(strspn(numSetsChar, "0123456789") == strlen(numSetsChar) && strspn(setAssocChar, "0123456789") == strlen(setAssocChar) && strspn(blockSizeChar, "0123456789") == strlen(blockSizeChar)){
 		numSets = atoi(numSetsChar);
                 setAssoc = atoi(setAssocChar);
